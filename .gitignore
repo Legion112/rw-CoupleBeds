@@ -4,8 +4,10 @@ Source/bin/
 *.pdb
 # compiled DLL is a release artifact, rebuild with: go run ./tools/rwmod build
 Assemblies/*.dll
-# editors
+# editors / IDEs
 .idea/
 .vscode/
+*.sln.DotSettings.user
+*.csproj.user
 *.swp
 *.user

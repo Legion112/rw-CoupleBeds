@@ -1,6 +1,6 @@
 // rwmod is the dev tool for this mod.
 //
-//	go run ./tools/rwmod build   compile Assemblies/CoupleBeds.dll
+//	go run ./tools/rwmod build   compile Assemblies/CoupleBeds.dll (-clean also removes Source/obj)
 //	go run ./tools/rwmod link    symlink this repo into RimWorld's Mods folder
 //	go run ./tools/rwmod log     show CoupleBeds errors from the game's Player.log
 //
@@ -95,6 +95,7 @@ func findDotnet() (string, error) {
 func build(args []string) error {
 	fs := flag.NewFlagSet("build", flag.ExitOnError)
 	config := fs.String("c", "Release", "build configuration")
+	clean := fs.Bool("clean", false, "delete Source/obj afterwards (breaks IDE analysis until the next restore)")
 	fs.Parse(args)
 
 	root, err := repoRoot()
@@ -118,7 +119,11 @@ func build(args []string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("dotnet build failed: %w", err)
 	}
-	os.RemoveAll(filepath.Join(src, "obj"))
+	// Source/obj is gitignored and Rider/VS Code need it for symbol resolution,
+	// so it is kept unless -clean is given.
+	if *clean {
+		os.RemoveAll(filepath.Join(src, "obj"))
+	}
 	fmt.Println("OK:", filepath.Join(root, "Assemblies", modFolderName+".dll"))
 	return nil
 }

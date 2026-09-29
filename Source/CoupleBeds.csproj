@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Build: `dotnet build -c Release` in this folder (or run: go run ./tools/rwmod build).
-       Uses the game's own DLLs; RimWorldManaged can be overridden:
-       dotnet build -c Release -p:RimWorldManaged=/path/to/RimWorldLinux_Data/Managed -->
+  <!-- Build with: go run ./tools/rwmod build
+       IDEs (Rider, VS Code) can also build this project directly: the game
+       DLLs are located below without any command-line properties. Override
+       explicitly with -p:RimWorldManaged=/path/to/RimWorldLinux_Data/Managed -->
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
     <LangVersion>latest</LangVersion>
@@ -10,8 +11,25 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <DebugType>none</DebugType>
-    <RimWorldManaged Condition="'$(RimWorldManaged)' == ''">$(MSBuildProjectDirectory)/../../../RimWorldLinux_Data/Managed</RimWorldManaged>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
   </PropertyGroup>
+
+  <!-- Where the game's managed DLLs live. First match wins:
+       1. -p:RimWorldManaged=... on the command line (what rwmod build passes)
+       2. $RIMWORLD_DIR, the same env var the Go tool honours
+       3. the repo sitting inside the game's Mods folder (a real copy, not the symlink)
+       4. the default install, ~/Games/RimWorld/game -->
+  <PropertyGroup>
+    <RimWorldManaged Condition="'$(RimWorldManaged)' == '' And '$(RIMWORLD_DIR)' != ''">$(RIMWORLD_DIR)/RimWorldLinux_Data/Managed</RimWorldManaged>
+    <RimWorldManaged Condition="'$(RimWorldManaged)' == '' And Exists('$(MSBuildProjectDirectory)/../../../RimWorldLinux_Data/Managed')">$(MSBuildProjectDirectory)/../../../RimWorldLinux_Data/Managed</RimWorldManaged>
+    <RimWorldManaged Condition="'$(RimWorldManaged)' == ''">$(HOME)/Games/RimWorld/game/RimWorldLinux_Data/Managed</RimWorldManaged>
+  </PropertyGroup>
+
+  <Target Name="CheckRimWorldManaged" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(RimWorldManaged)/Assembly-CSharp.dll')"
+           Text="RimWorld's Assembly-CSharp.dll was not found in '$(RimWorldManaged)'. Set the RIMWORLD_DIR environment variable to the game folder, or pass -p:RimWorldManaged=/path/to/RimWorldLinux_Data/Managed." />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
