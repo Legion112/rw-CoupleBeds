@@ -1,0 +1,11 @@
+# build output
+Source/obj/
+Source/bin/
+*.pdb
+# compiled DLL is a release artifact, rebuild with: go run ./tools/rwmod build
+Assemblies/*.dll
+# editors
+.idea/
+.vscode/
+*.swp
+*.user
