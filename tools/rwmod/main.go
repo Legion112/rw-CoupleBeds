@@ -2,6 +2,7 @@
 //
 //	go run ./tools/rwmod build   compile Assemblies/CoupleBeds.dll (-clean also removes Source/obj)
 //	go run ./tools/rwmod test    run the CoupleBeds.Core unit tests
+//	go run ./tools/rwmod mutate  break the logic on purpose, check the tests notice
 //	go run ./tools/rwmod link    symlink this repo into RimWorld's Mods folder
 //	go run ./tools/rwmod log     show CoupleBeds errors from the game's Player.log
 //
@@ -33,6 +34,8 @@ func main() {
 		err = build(os.Args[2:])
 	case "test":
 		err = test(os.Args[2:])
+	case "mutate":
+		err = mutate(os.Args[2:])
 	case "link":
 		err = link(os.Args[2:])
 	case "log":
@@ -47,7 +50,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: go run ./tools/rwmod <build|test|link|log> [flags]")
+	fmt.Fprintln(os.Stderr, "usage: go run ./tools/rwmod <build|test|mutate|link|log> [flags]")
 	os.Exit(2)
 }
 
