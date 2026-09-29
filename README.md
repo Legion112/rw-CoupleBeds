@@ -12,3 +12,7 @@ double bed — preferring a private, impressive bedroom — so they avoid the
 
 Set RIMWORLD_DIR if the game isn't in ~/Games/RimWorld/game.
 Then enable "Couple Beds" in the mod list. Settings: Options > Mod settings > Couple Beds.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
