@@ -54,13 +54,17 @@ namespace CoupleBeds.Core
     /// Whether a pawn is a candidate for automatic bed assignment at all.
     public static class Eligibility
     {
-        public static bool IsEligible(PawnView pawn)
+        public static bool IsEligible(PawnView pawn, PlannerSettings settings)
         {
-            if (pawn == null) return false;
+            if (pawn == null || settings == null) return false;
             if (pawn.Dead || pawn.Downed) return false;
             if (!pawn.HasOwnership) return false;
             if (!pawn.Humanlike) return false;
-            if (!pawn.HasRestNeed) return false;          // does not sleep
+            // A pawn with no rest need never sleeps, but RimWorld still applies
+            // the "sleeping alone" thought to them - the ThoughtDef has no gene
+            // or need gate - so they are worth bedding unless the player says
+            // otherwise and would rather keep the bed free.
+            if (!pawn.HasRestNeed && !settings.ManageSleepless) return false;
             if (pawn.HasDeathrestGene) return false;      // do not break deathrest caskets
             return true;
         }

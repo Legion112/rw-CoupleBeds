@@ -87,6 +87,12 @@ var mutants = []mutant{
 		"if (pawn.HasDeathrestGene) return false;", "if (false) return false;"},
 	{"downed pawns managed", matcherFile,
 		"if (pawn.Dead || pawn.Downed) return false;", "if (pawn.Dead) return false;"},
+	{"sleepless option ignored, always manage", matcherFile,
+		"if (!pawn.HasRestNeed && !settings.ManageSleepless) return false;",
+		"if (false) return false;"},
+	{"sleepless option ignored, never manage", matcherFile,
+		"if (!pawn.HasRestNeed && !settings.ManageSleepless) return false;",
+		"if (!pawn.HasRestNeed) return false;"},
 }
 
 var resultLine = regexp.MustCompile(`Failed:\s+(\d+), Passed:\s+(\d+)`)

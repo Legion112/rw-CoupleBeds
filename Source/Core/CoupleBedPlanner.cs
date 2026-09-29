@@ -51,7 +51,7 @@ namespace CoupleBeds.Core
                 handled.Add(a.Id);
                 handled.Add(b.Id);
 
-                if (!Eligibility.IsEligible(a) || !Eligibility.IsEligible(b)) continue;
+                if (!Eligibility.IsEligible(a, settings) || !Eligibility.IsEligible(b, settings)) continue;
                 if (a.IsSlave != b.IsSlave) continue;   // slave and colonist beds are different
 
                 if (candidates == null) candidates = CollectDoubleBeds(snapshot);

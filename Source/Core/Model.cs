@@ -107,6 +107,11 @@ namespace CoupleBeds.Core
     {
         public bool IncludeLovers = true;
         public bool AllowUpgrade = true;
+        /// Manage pawns with no rest need (the Neversleep gene, the body mastery
+        /// trait, void touched, a circadian half-cycler). They never sleep, but
+        /// the game still gives them the "sleeping alone" mood penalty, so by
+        /// default they are bedded like anyone else.
+        public bool ManageSleepless = true;
         public float UpgradeMargin = 15f;
     }
 

@@ -178,6 +178,9 @@ namespace CoupleBeds.Tests
 
     public class EligibilityTests
     {
+        private static readonly PlannerSettings Default = new PlannerSettings();
+        private static readonly PlannerSettings SkipSleepless = new PlannerSettings { ManageSleepless = false };
+
         private static PawnView Healthy()
         {
             return new Colony().AddPawn("healthy");
@@ -186,13 +189,13 @@ namespace CoupleBeds.Tests
         [Fact]
         public void HealthyColonist_IsEligible()
         {
-            Assert.True(Eligibility.IsEligible(Healthy()));
+            Assert.True(Eligibility.IsEligible(Healthy(), Default));
         }
 
         [Fact]
         public void Null_IsNotEligible()
         {
-            Assert.False(Eligibility.IsEligible(null));
+            Assert.False(Eligibility.IsEligible(null, Default));
         }
 
         [Fact]
@@ -200,7 +203,7 @@ namespace CoupleBeds.Tests
         {
             PawnView pawn = Healthy();
             pawn.Dead = true;
-            Assert.False(Eligibility.IsEligible(pawn));
+            Assert.False(Eligibility.IsEligible(pawn, Default));
         }
 
         [Fact]
@@ -208,7 +211,7 @@ namespace CoupleBeds.Tests
         {
             PawnView pawn = Healthy();
             pawn.Downed = true;
-            Assert.False(Eligibility.IsEligible(pawn));
+            Assert.False(Eligibility.IsEligible(pawn, Default));
         }
 
         [Fact]
@@ -216,7 +219,7 @@ namespace CoupleBeds.Tests
         {
             PawnView pawn = Healthy();
             pawn.HasOwnership = false;
-            Assert.False(Eligibility.IsEligible(pawn));
+            Assert.False(Eligibility.IsEligible(pawn, Default));
         }
 
         [Fact]
@@ -224,15 +227,37 @@ namespace CoupleBeds.Tests
         {
             PawnView pawn = Healthy();
             pawn.Humanlike = false;
-            Assert.False(Eligibility.IsEligible(pawn));
+            Assert.False(Eligibility.IsEligible(pawn, Default));
         }
 
         [Fact]
-        public void WithoutRestNeed_IsNotEligible()
+        public void WithoutRestNeed_IsEligibleByDefault()
+        {
+            // They never sleep, but the game still hands them the
+            // "sleeping alone" thought, so a bed is still worth having.
+            PawnView pawn = Healthy();
+            pawn.HasRestNeed = false;
+            Assert.True(Eligibility.IsEligible(pawn, Default));
+        }
+
+        [Fact]
+        public void WithoutRestNeed_IsNotEligibleWhenTheOptionIsOff()
         {
             PawnView pawn = Healthy();
             pawn.HasRestNeed = false;
-            Assert.False(Eligibility.IsEligible(pawn));
+            Assert.False(Eligibility.IsEligible(pawn, SkipSleepless));
+        }
+
+        [Fact]
+        public void SleeplessOption_DoesNotChangeAnybodyElse()
+        {
+            Assert.True(Eligibility.IsEligible(Healthy(), SkipSleepless));
+        }
+
+        [Fact]
+        public void NullSettings_IsNotEligible()
+        {
+            Assert.False(Eligibility.IsEligible(Healthy(), null));
         }
 
         [Fact]
@@ -240,7 +265,7 @@ namespace CoupleBeds.Tests
         {
             PawnView pawn = Healthy();
             pawn.HasDeathrestGene = true;
-            Assert.False(Eligibility.IsEligible(pawn));
+            Assert.False(Eligibility.IsEligible(pawn, Default));
         }
 
         [Fact]
@@ -248,7 +273,7 @@ namespace CoupleBeds.Tests
         {
             PawnView pawn = Healthy();
             pawn.IsSlave = true;
-            Assert.True(Eligibility.IsEligible(pawn));
+            Assert.True(Eligibility.IsEligible(pawn, Default));
         }
     }
 }

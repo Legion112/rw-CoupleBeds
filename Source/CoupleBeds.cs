@@ -20,6 +20,7 @@ namespace CoupleBeds
         public bool enabled = true;
         public bool includeLovers = true;   // false = spouses only
         public bool allowUpgrade = true;    // move couples that already share to a clearly better bed
+        public bool manageSleepless = true; // bed pawns with no rest need (they still get the mood penalty)
         public bool notify = true;
         public int intervalHours = 1;
         public float upgradeMargin = 15f;
@@ -30,6 +31,7 @@ namespace CoupleBeds
             Scribe_Values.Look(ref enabled, "enabled", true);
             Scribe_Values.Look(ref includeLovers, "includeLovers", true);
             Scribe_Values.Look(ref allowUpgrade, "allowUpgrade", true);
+            Scribe_Values.Look(ref manageSleepless, "manageSleepless", true);
             Scribe_Values.Look(ref notify, "notify", true);
             Scribe_Values.Look(ref intervalHours, "intervalHours", 1);
             Scribe_Values.Look(ref upgradeMargin, "upgradeMargin", 15f);
@@ -41,6 +43,7 @@ namespace CoupleBeds
             {
                 IncludeLovers = includeLovers,
                 AllowUpgrade = allowUpgrade,
+                ManageSleepless = manageSleepless,
                 UpgradeMargin = upgradeMargin,
             };
         }
@@ -73,6 +76,9 @@ namespace CoupleBeds
                 "Automatically move partners into a shared double bed.");
             l.CheckboxLabeled("Include lovers and fiancés (not only spouses)", ref s.includeLovers,
                 "Lovers and fiancés get the same 'Want to sleep with partner' penalty as spouses.");
+            l.CheckboxLabeled("Include pawns who never sleep", ref s.manageSleepless,
+                "Pawns with the never-sleep gene, body mastery, void touched or a circadian half-cycler have no rest need, "
+                + "but RimWorld still gives them the 'sleeping alone' mood penalty. Uncheck to leave them alone and keep the bed free.");
             l.CheckboxLabeled("Upgrade couples to better free double beds", ref s.allowUpgrade,
                 "If a couple already shares a bed but a clearly better free double bed exists (private room, more impressive), move them.");
             l.CheckboxLabeled("Show a message when a couple is moved", ref s.notify);

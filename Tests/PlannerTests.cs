@@ -188,12 +188,82 @@ namespace CoupleBeds.Tests
             Assert.Empty(colony.Plan());
         }
 
+        // ------------------------------------------------ pawns who never sleep
+        // The never-sleep gene, body mastery, void touched and the circadian
+        // half-cycler all remove the rest need, but RimWorld still applies the
+        // "sleeping alone" thought, so by default these pawns are bedded too.
+
         [Fact]
-        public void PartnerWithoutRestNeed_NothingHappens()
+        public void SleeplessCouple_IsBeddedByDefault()
+        {
+            Colony colony = new Colony();
+            PawnView a = colony.AddPawn("ada", p => p.HasRestNeed = false);
+            PawnView b = colony.AddPawn("bo", p => p.HasRestNeed = false);
+            colony.Marry(a, b);
+            BedView bed = colony.AddPrivateDoubleBed();
+
+            PlanAssert.AssignedTo(colony.Plan(), a, b, bed);
+        }
+
+        [Fact]
+        public void SleeplessCouple_IsLeftAloneWhenTheOptionIsOff()
+        {
+            Colony colony = new Colony();
+            PawnView a = colony.AddPawn("ada", p => p.HasRestNeed = false);
+            PawnView b = colony.AddPawn("bo", p => p.HasRestNeed = false);
+            colony.Marry(a, b);
+            colony.AddPrivateDoubleBed();
+
+            Assert.Empty(colony.Plan(new PlannerSettings { ManageSleepless = false }));
+        }
+
+        [Fact]
+        public void OneSleeplessPartner_TheCoupleIsStillBeddedByDefault()
+        {
+            // The sleeping partner gets the mood penalty too, so one sleepless
+            // pawn must not cost both of them a bed.
+            Colony colony = new Colony();
+            PawnView a = colony.AddPawn("ada");
+            PawnView b = colony.AddPawn("bo", p => p.HasRestNeed = false);
+            colony.Marry(a, b);
+            BedView bed = colony.AddPrivateDoubleBed();
+
+            PlanAssert.AssignedTo(colony.Plan(), a, b, bed);
+        }
+
+        [Fact]
+        public void OneSleeplessPartner_BlocksTheCoupleWhenTheOptionIsOff()
         {
             Colony colony = new Colony();
             PawnView a = colony.AddPawn("ada");
             PawnView b = colony.AddPawn("bo", p => p.HasRestNeed = false);
+            colony.Marry(a, b);
+            colony.AddPrivateDoubleBed();
+
+            Assert.Empty(colony.Plan(new PlannerSettings { ManageSleepless = false }));
+        }
+
+        [Fact]
+        public void SleeplessCouple_StillObeysEveryOtherRule()
+        {
+            // The option relaxes eligibility only; it must not let a couple take
+            // a bed somebody else owns.
+            Colony colony = new Colony();
+            PawnView a = colony.AddPawn("ada", p => p.HasRestNeed = false);
+            PawnView b = colony.AddPawn("bo", p => p.HasRestNeed = false);
+            colony.Marry(a, b);
+            BedView taken = colony.AddPrivateDoubleBed(impressiveness: 400f);
+            colony.OwnedByStranger(taken);
+
+            Assert.Empty(colony.Plan());
+        }
+
+        [Fact]
+        public void SleeplessOption_DoesNotResurrectOtherIneligiblePawns()
+        {
+            Colony colony = new Colony();
+            PawnView a = colony.AddPawn("ada");
+            PawnView b = colony.AddPawn("bo", p => { p.HasRestNeed = false; p.Downed = true; });
             colony.Marry(a, b);
             colony.AddPrivateDoubleBed();
 

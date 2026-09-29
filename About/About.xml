@@ -14,6 +14,7 @@ Smart choice of bed:
  - prefers the most impressive room
  - never kicks anyone else out of their bed
  - optionally upgrades a couple to a better free double bed when one appears
+ - also beds pawns who never sleep, who still get the mood penalty (can be turned off)
 
 Settings: Options → Mod settings → Couple Beds.
 Safe to add or remove mid-save.</description>
