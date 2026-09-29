@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <defs>
+    <radialGradient id="bg" cx="30%" cy="42%" r="80%">
+      <stop offset="0%" stop-color="#3b4450"/>
+      <stop offset="100%" stop-color="#1b1f25"/>
+    </radialGradient>
+    <clipPath id="bedClip"><rect x="8" y="5" width="48" height="54" rx="6"/></clipPath>
+  </defs>
+
+  <rect width="640" height="360" fill="url(#bg)"/>
+
+  <g transform="translate(30 86) scale(3.0)">
+    <rect x="8" y="5" width="48" height="54" rx="6" fill="#8a5a33" stroke="#2a1a0f" stroke-width="3"/>
+    <g clip-path="url(#bedClip)">
+      <rect x="11" y="8" width="42" height="48" rx="4" fill="#efe6d6"/>
+      <rect x="13.5" y="10.5" width="17" height="12" rx="3" fill="#fbf7ef"/>
+      <rect x="33.5" y="10.5" width="17" height="12" rx="3" fill="#fbf7ef"/>
+      <rect x="13.5" y="10.5" width="17" height="12" rx="3" fill="none" stroke="#c3b49a" stroke-width="1.5"/>
+      <rect x="33.5" y="10.5" width="17" height="12" rx="3" fill="none" stroke="#c3b49a" stroke-width="1.5"/>
+      <rect x="11" y="26" width="42" height="30" fill="#3d6e8a"/>
+      <rect x="11" y="26" width="42" height="3.5" fill="#2e566c"/>
+      <line x1="32" y1="29.5" x2="32" y2="56" stroke="#2e566c" stroke-width="1.5"/>
+    </g>
+    <path d="M32 53.5 C32 53.5 18.5 45.2 18.5 37.2 C18.5 32.6 22 29.4 25.8 29.4 C28.6 29.4 31 31.3 32 33.6 C33 31.3 35.4 29.4 38.2 29.4 C42 29.4 45.5 32.6 45.5 37.2 C45.5 45.2 32 53.5 32 53.5 Z"
+          fill="#e0443f" stroke="#2a1a0f" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M25.6 33.2 C23.6 33.4 22.2 35 22.2 36.9" fill="none" stroke="#f2938f" stroke-width="2" stroke-linecap="round"/>
+    <rect x="8" y="5" width="48" height="54" rx="6" fill="none" stroke="#2a1a0f" stroke-width="3"/>
+  </g>
+
+  <g font-family="DejaVu Sans" fill="#f4f1ea">
+    <text x="232" y="128" font-size="44" font-weight="bold">Couple Beds</text>
+    <line x1="234" y1="146" x2="470" y2="146" stroke="#59687a" stroke-width="2"/>
+    <text x="234" y="176" font-size="18" fill="#aebccb">Smart partner bed assignment</text>
+
+    <g font-size="16" fill="#93a3b4">
+      <text x="234" y="222">•  Partners share a double bed</text>
+      <text x="234" y="250">•  Prefers a private, impressive room</text>
+      <text x="234" y="278">•  Never takes an owned bed</text>
+    </g>
+  </g>
+
+  <rect x="3" y="3" width="634" height="354" fill="none" stroke="#10131a" stroke-width="6"/>
+</svg>

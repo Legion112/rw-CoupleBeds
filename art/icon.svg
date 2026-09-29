@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Couple Beds mod icon: a top-down double bed with a heart on the blanket.
+       Drawn with heavy outlines because RimWorld renders this at ~32px. -->
+  <defs>
+    <clipPath id="bedClip">
+      <rect x="8" y="5" width="48" height="54" rx="6"/>
+    </clipPath>
+  </defs>
+
+  <!-- bed frame -->
+  <rect x="8" y="5" width="48" height="54" rx="6" fill="#8a5a33" stroke="#2a1a0f" stroke-width="3"/>
+
+  <g clip-path="url(#bedClip)">
+    <!-- mattress -->
+    <rect x="11" y="8" width="42" height="48" rx="4" fill="#efe6d6"/>
+    <!-- pillows -->
+    <rect x="13.5" y="10.5" width="17" height="12" rx="3" fill="#fbf7ef"/>
+    <rect x="33.5" y="10.5" width="17" height="12" rx="3" fill="#fbf7ef"/>
+    <rect x="13.5" y="10.5" width="17" height="12" rx="3" fill="none" stroke="#c3b49a" stroke-width="1.5"/>
+    <rect x="33.5" y="10.5" width="17" height="12" rx="3" fill="none" stroke="#c3b49a" stroke-width="1.5"/>
+    <!-- blanket -->
+    <rect x="11" y="26" width="42" height="30" fill="#3d6e8a"/>
+    <rect x="11" y="26" width="42" height="3.5" fill="#2e566c"/>
+    <!-- seam between the two sleepers -->
+    <line x1="32" y1="29.5" x2="32" y2="56" stroke="#2e566c" stroke-width="1.5"/>
+  </g>
+
+  <!-- heart -->
+  <path d="M32 53.5 C32 53.5 18.5 45.2 18.5 37.2 C18.5 32.6 22 29.4 25.8 29.4 C28.6 29.4 31 31.3 32 33.6 C33 31.3 35.4 29.4 38.2 29.4 C42 29.4 45.5 32.6 45.5 37.2 C45.5 45.2 32 53.5 32 53.5 Z"
+        fill="#e0443f" stroke="#2a1a0f" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M25.6 33.2 C23.6 33.4 22.2 35 22.2 36.9" fill="none" stroke="#f2938f" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- frame outline on top so it stays crisp -->
+  <rect x="8" y="5" width="48" height="54" rx="6" fill="none" stroke="#2a1a0f" stroke-width="3"/>
+</svg>
