@@ -1,8 +1,12 @@
 // Couple Beds - automatically puts partners into a shared double bed.
-// Written in plain C# 5 so it compiles with the csc.exe that ships with Windows.
+//
+// The decision logic lives in CoupleBeds.Core, which has no RimWorld
+// dependencies and is unit tested. This file is the adapter: it turns a Map into
+// a ColonySnapshot, asks the planner what to do, and carries it out.
 
 using System;
 using System.Collections.Generic;
+using CoupleBeds.Core;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -29,6 +33,16 @@ namespace CoupleBeds
             Scribe_Values.Look(ref notify, "notify", true);
             Scribe_Values.Look(ref intervalHours, "intervalHours", 1);
             Scribe_Values.Look(ref upgradeMargin, "upgradeMargin", 15f);
+        }
+
+        public PlannerSettings ToPlannerSettings()
+        {
+            return new PlannerSettings
+            {
+                IncludeLovers = includeLovers,
+                AllowUpgrade = allowUpgrade,
+                UpgradeMargin = upgradeMargin,
+            };
         }
     }
 
@@ -129,170 +143,206 @@ namespace CoupleBeds
         }
     }
 
-    // ------------------------------------------------------------------ logic
+    // ------------------------------------------------- game <-> core adapter
     public static class CoupleBedAssigner
     {
-        // Returns number of couples moved.
+        /// Returns the number of couples moved.
         public static int Run(Map map, CoupleBedsSettings s)
         {
-            List<Pawn> pawns = new List<Pawn>(map.mapPawns.FreeColonistsSpawned);
-            HashSet<Pawn> handled = new HashSet<Pawn>();
-            List<Building_Bed> beds = null;
-            int moved = 0;
+            Dictionary<int, Pawn> pawnsById;
+            Dictionary<int, Building_Bed> bedsById;
+            ColonySnapshot snapshot = BuildSnapshot(map, out pawnsById, out bedsById);
 
-            for (int i = 0; i < pawns.Count; i++)
+            List<BedAssignment> plan = CoupleBedPlanner.Plan(
+                snapshot, s.ToPlannerSettings(), new GameBedAccess(pawnsById, bedsById));
+
+            return Apply(plan, pawnsById, bedsById, s);
+        }
+
+        // ---------------------------------------------------------- snapshot
+        public static ColonySnapshot BuildSnapshot(Map map,
+            out Dictionary<int, Pawn> pawnsById, out Dictionary<int, Building_Bed> bedsById)
+        {
+            ColonySnapshot snapshot = new ColonySnapshot();
+            pawnsById = new Dictionary<int, Pawn>();
+            bedsById = new Dictionary<int, Building_Bed>();
+
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
-                Pawn a = pawns[i];
-                if (handled.Contains(a)) continue;
+                if (pawn == null) continue;
+                pawnsById[pawn.thingIDNumber] = pawn;
+                snapshot.Pawns.Add(ViewOf(pawn));
+            }
 
-                Pawn b = GetPartner(a, s);
-                if (b == null || handled.Contains(b)) continue;
-                if (GetPartner(b, s) != a) continue;          // must be mutual (matters with polygamy)
-                if (!b.Spawned || b.Map != map) continue;     // partner away (caravan etc.)
+            foreach (Building_Bed bed in map.listerBuildings.AllBuildingsColonistOfClass<Building_Bed>())
+            {
+                if (bed == null || bed.Destroyed || !bed.Spawned) continue;
+                bedsById[bed.thingIDNumber] = bed;
+                snapshot.Beds.Add(ViewOf(bed));
+            }
 
-                handled.Add(a);
-                handled.Add(b);
+            return snapshot;
+        }
 
-                if (!Eligible(a) || !Eligible(b)) continue;
-                if (a.IsSlave != b.IsSlave) continue;         // slave and colonist beds are different
+        private static PawnView ViewOf(Pawn pawn)
+        {
+            PawnView view = new PawnView
+            {
+                Id = pawn.thingIDNumber,
+                Label = pawn.LabelShort,
+                Dead = pawn.Dead,
+                Downed = pawn.Downed,
+                Humanlike = pawn.RaceProps != null && pawn.RaceProps.Humanlike,
+                HasOwnership = pawn.ownership != null,
+                HasRestNeed = pawn.needs != null && pawn.needs.rest != null,
+                HasDeathrestGene = pawn.genes != null && pawn.genes.GetFirstGeneOfType<Gene_Deathrest>() != null,
+                IsSlave = pawn.IsSlave,
+            };
 
-                if (beds == null) beds = CollectDoubleBeds(map);
-                if (HandleCouple(a, b, beds, s)) moved++;
+            if (pawn.ownership != null && pawn.ownership.OwnedBed != null)
+                view.OwnedBedId = pawn.ownership.OwnedBed.thingIDNumber;
+
+            if (pawn.relations != null)
+            {
+                List<DirectPawnRelation> relations = pawn.relations.DirectRelations;
+                for (int i = 0; i < relations.Count; i++)
+                {
+                    DirectPawnRelation rel = relations[i];
+                    if (rel.otherPawn == null) continue;
+                    if (!LovePartnerRelationUtility.IsLovePartnerRelation(rel.def)) continue;
+                    view.LovePartners.Add(new LoveRelation(
+                        rel.otherPawn.thingIDNumber,
+                        rel.def == PawnRelationDefOf.Spouse,
+                        pawn.relations.OpinionOf(rel.otherPawn),
+                        rel.otherPawn.Dead));
+                }
+            }
+
+            return view;
+        }
+
+        private static BedView ViewOf(Building_Bed bed)
+        {
+            BedView view = new BedView
+            {
+                Id = bed.thingIDNumber,
+                Medical = bed.Medical,
+                ForPrisoners = bed.ForPrisoners,
+                Humanlike = bed.def.building != null && bed.def.building.bed_humanlike,
+                SleepingSlots = bed.SleepingSlotsCount,
+                ForOwnerType = ToCore(bed.ForOwnerType),
+                Comfort = bed.GetStatValue(StatDefOf.Comfort),
+            };
+
+            Room room = bed.GetRoom();
+            if (room != null)
+            {
+                view.RoomId = room.ID;
+                view.RoomOutdoors = room.PsychologicallyOutdoors;
+                view.RoomImpressiveness = room.GetStat(RoomStatDefOf.Impressiveness);
+
+                int others = 0;
+                foreach (Building_Bed other in room.ContainedBeds)
+                    if (other != bed && !other.Medical) others++;
+                view.OtherNonMedicalBedsInRoom = others;
+            }
+
+            foreach (Pawn owner in bed.OwnersForReading)
+                if (owner != null) view.OwnerIds.Add(owner.thingIDNumber);
+
+            return view;
+        }
+
+        private static BedOwner ToCore(BedOwnerType type)
+        {
+            switch (type)
+            {
+                case BedOwnerType.Slave: return BedOwner.Slave;
+                case BedOwnerType.Prisoner: return BedOwner.Prisoner;
+                default: return BedOwner.Colonist;
+            }
+        }
+
+        // ------------------------------------------------------------- apply
+        private static int Apply(List<BedAssignment> plan,
+            Dictionary<int, Pawn> pawnsById, Dictionary<int, Building_Bed> bedsById,
+            CoupleBedsSettings s)
+        {
+            int moved = 0;
+            for (int i = 0; i < plan.Count; i++)
+            {
+                BedAssignment assignment = plan[i];
+
+                Pawn a, b;
+                Building_Bed bed;
+                if (!pawnsById.TryGetValue(assignment.PawnAId, out a)) continue;
+                if (!pawnsById.TryGetValue(assignment.PawnBId, out b)) continue;
+                if (!bedsById.TryGetValue(assignment.BedId, out bed)) continue;
+                if (bed.Destroyed || !bed.Spawned) continue;
+
+                if (!IsOwner(bed, a)) a.ownership.ClaimBedIfNonMedical(bed);
+                if (!IsOwner(bed, b)) b.ownership.ClaimBedIfNonMedical(bed);
+
+                // The game can refuse; only count and announce real moves.
+                if (!IsOwner(bed, a) || !IsOwner(bed, b)) continue;
+                moved++;
+
+                if (s.notify)
+                {
+                    string text = assignment.IsUpgrade
+                        ? a.LabelShort + " and " + b.LabelShort + " moved to a better shared bed."
+                        : a.LabelShort + " and " + b.LabelShort + " now share a bed.";
+                    Messages.Message(text, bed, MessageTypeDefOf.NeutralEvent, false);
+                }
             }
             return moved;
         }
 
-        private static Pawn GetPartner(Pawn p, CoupleBedsSettings s)
+        private static bool IsOwner(Building_Bed bed, Pawn pawn)
         {
-            if (p.relations == null) return null;
-            Pawn partner = LovePartnerRelationUtility.ExistingMostLikedLovePartner(p, false);
-            if (partner == null) return null;
-            if (!s.includeLovers && !p.relations.DirectRelationExists(PawnRelationDefOf.Spouse, partner))
-                return null;
-            return partner;
-        }
-
-        private static bool Eligible(Pawn p)
-        {
-            if (p.Dead || !p.Spawned || p.Downed) return false;
-            if (p.ownership == null || p.RaceProps == null || !p.RaceProps.Humanlike) return false;
-            if (p.needs == null || p.needs.rest == null) return false;   // doesn't sleep
-            if (p.genes != null && p.genes.GetFirstGeneOfType<Gene_Deathrest>() != null)
-                return false;                                           // don't break deathrest caskets
-            return true;
-        }
-
-        private static List<Building_Bed> CollectDoubleBeds(Map map)
-        {
-            List<Building_Bed> result = new List<Building_Bed>();
-            foreach (Building_Bed bed in map.listerBuildings.AllBuildingsColonistOfClass<Building_Bed>())
-            {
-                if (bed == null || bed.Destroyed || !bed.Spawned) continue;
-                if (bed.Medical || bed.ForPrisoners) continue;
-                if (bed.SleepingSlotsCount < 2) continue;
-                if (bed.def.building == null || !bed.def.building.bed_humanlike) continue;
-                result.Add(bed);
-            }
-            return result;
-        }
-
-        private static bool HandleCouple(Pawn a, Pawn b, List<Building_Bed> beds, CoupleBedsSettings s)
-        {
-            Building_Bed bedA = a.ownership.OwnedBed;
-            Building_Bed bedB = b.ownership.OwnedBed;
-            bool alreadySharing = bedA != null && bedA == bedB;
-            if (alreadySharing && !s.allowUpgrade) return false;
-
-            Building_Bed best = null;
-            float bestScore = float.MinValue;
-            for (int i = 0; i < beds.Count; i++)
-            {
-                Building_Bed bed = beds[i];
-                if (!Usable(bed, a, b)) continue;
-                float score = Score(bed, a, b);
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    best = bed;
-                }
-            }
-            if (best == null) return false;
-
-            if (alreadySharing)
-            {
-                if (best == bedA) return false;
-                float current = Score(bedA, a, b);
-                if (bestScore < current + s.upgradeMargin) return false;
-            }
-
-            if (!IsOwner(best, a)) a.ownership.ClaimBedIfNonMedical(best);
-            if (!IsOwner(best, b)) b.ownership.ClaimBedIfNonMedical(best);
-
-            if (!IsOwner(best, a) || !IsOwner(best, b)) return false;
-
-            if (s.notify)
-            {
-                string text = alreadySharing
-                    ? a.LabelShort + " and " + b.LabelShort + " moved to a better shared bed."
-                    : a.LabelShort + " and " + b.LabelShort + " now share a bed.";
-                Messages.Message(text, best, MessageTypeDefOf.NeutralEvent, false);
-            }
-            return true;
-        }
-
-        private static bool Usable(Building_Bed bed, Pawn a, Pawn b)
-        {
-            if (bed.Destroyed || !bed.Spawned || bed.Medical || bed.ForPrisoners) return false;
-            if (bed.SleepingSlotsCount < 2) return false;
-
-            BedOwnerType wanted = a.IsSlave ? BedOwnerType.Slave : BedOwnerType.Colonist;
-            if (bed.ForOwnerType != wanted) return false;
-
-            // Never evict anyone who isn't part of this couple.
-            foreach (Pawn owner in bed.OwnersForReading)
-                if (owner != a && owner != b) return false;
-
-            if (!RestUtility.CanUseBedEver(a, bed.def) || !RestUtility.CanUseBedEver(b, bed.def)) return false;
-            if (bed.IsForbidden(a) || bed.IsForbidden(b)) return false;
-            if (!a.CanReach(bed, PathEndMode.Touch, Danger.Some)) return false;
-            if (!b.CanReach(bed, PathEndMode.Touch, Danger.Some)) return false;
-            return true;
-        }
-
-        // Higher = better. Mirrors what drives sleep-related mood:
-        // private bedroom vs barracks, room impressiveness, bed comfort.
-        private static float Score(Building_Bed bed, Pawn a, Pawn b)
-        {
-            float score = 0f;
-            Room room = bed.GetRoom();
-            if (room == null || room.PsychologicallyOutdoors)
-            {
-                score -= 100f;
-            }
-            else
-            {
-                score += room.GetStat(RoomStatDefOf.Impressiveness);
-
-                int otherBeds = 0;
-                foreach (Building_Bed other in room.ContainedBeds)
-                    if (other != bed && !other.Medical) otherBeds++;
-
-                if (otherBeds == 0) score += 40f;         // own bedroom, no "slept in barracks"
-                else score -= 10f * otherBeds;
-            }
-
-            score += bed.GetStatValue(StatDefOf.Comfort) * 20f;
-
-            // Small preference for a bed one of them already owns (less shuffling).
-            if (IsOwner(bed, a) || IsOwner(bed, b)) score += 5f;
-            return score;
-        }
-
-        private static bool IsOwner(Building_Bed bed, Pawn p)
-        {
-            foreach (Pawn owner in bed.OwnersForReading)
-                if (owner == p) return true;
+            List<Pawn> owners = bed.OwnersForReading;
+            for (int i = 0; i < owners.Count; i++)
+                if (owners[i] == pawn) return true;
             return false;
+        }
+
+        // ------------------------------------------------- IBedAccess over the game
+        private sealed class GameBedAccess : IBedAccess
+        {
+            private readonly Dictionary<int, Pawn> pawns;
+            private readonly Dictionary<int, Building_Bed> beds;
+
+            public GameBedAccess(Dictionary<int, Pawn> pawns, Dictionary<int, Building_Bed> beds)
+            {
+                this.pawns = pawns;
+                this.beds = beds;
+            }
+
+            private bool Resolve(int pawnId, int bedId, out Pawn pawn, out Building_Bed bed)
+            {
+                return pawns.TryGetValue(pawnId, out pawn) & beds.TryGetValue(bedId, out bed);
+            }
+
+            public bool CanUseBedEver(int pawnId, int bedId)
+            {
+                Pawn pawn; Building_Bed bed;
+                if (!Resolve(pawnId, bedId, out pawn, out bed)) return false;
+                return RestUtility.CanUseBedEver(pawn, bed.def);
+            }
+
+            public bool IsForbidden(int pawnId, int bedId)
+            {
+                Pawn pawn; Building_Bed bed;
+                if (!Resolve(pawnId, bedId, out pawn, out bed)) return true;
+                return bed.IsForbidden(pawn);
+            }
+
+            public bool CanReach(int pawnId, int bedId)
+            {
+                Pawn pawn; Building_Bed bed;
+                if (!Resolve(pawnId, bedId, out pawn, out bed)) return false;
+                return pawn.CanReach(bed, PathEndMode.Touch, Danger.Some);
+            }
         }
     }
 }

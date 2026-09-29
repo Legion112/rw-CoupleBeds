@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests for CoupleBeds.Core. The mod itself targets net472 and links against
+       RimWorld's assemblies, which cannot run outside the game; Core is written
+       without any game types, so it is compiled a second time here against a
+       modern runtime and exercised with fakes. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>CoupleBeds.Tests</AssemblyName>
+    <RootNamespace>CoupleBeds.Tests</RootNamespace>
+    <!-- Core is written in an older C# dialect so it also compiles for net472. -->
+    <NoWarn>$(NoWarn);CS0649</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Source/Core/**/*.cs" LinkBase="Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

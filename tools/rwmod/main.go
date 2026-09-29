@@ -1,6 +1,7 @@
 // rwmod is the dev tool for this mod.
 //
 //	go run ./tools/rwmod build   compile Assemblies/CoupleBeds.dll (-clean also removes Source/obj)
+//	go run ./tools/rwmod test    run the CoupleBeds.Core unit tests
 //	go run ./tools/rwmod link    symlink this repo into RimWorld's Mods folder
 //	go run ./tools/rwmod log     show CoupleBeds errors from the game's Player.log
 //
@@ -30,6 +31,8 @@ func main() {
 	switch os.Args[1] {
 	case "build":
 		err = build(os.Args[2:])
+	case "test":
+		err = test(os.Args[2:])
 	case "link":
 		err = link(os.Args[2:])
 	case "log":
@@ -44,7 +47,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: go run ./tools/rwmod <build|link|log> [flags]")
+	fmt.Fprintln(os.Stderr, "usage: go run ./tools/rwmod <build|test|link|log> [flags]")
 	os.Exit(2)
 }
 
@@ -125,6 +128,43 @@ func build(args []string) error {
 		os.RemoveAll(filepath.Join(src, "obj"))
 	}
 	fmt.Println("OK:", filepath.Join(root, "Assemblies", modFolderName+".dll"))
+	return nil
+}
+
+// test runs the xunit suite over CoupleBeds.Core. The tests target a modern
+// runtime and need no RimWorld assemblies, so the game does not have to be
+// installed for this to work.
+func test(args []string) error {
+	fs := flag.NewFlagSet("test", flag.ExitOnError)
+	filter := fs.String("run", "", "only tests whose fully qualified name matches this substring")
+	verbose := fs.Bool("v", false, "list every test, not just the summary")
+	fs.Parse(args)
+
+	root, err := repoRoot()
+	if err != nil {
+		return err
+	}
+	dotnet, err := findDotnet()
+	if err != nil {
+		return err
+	}
+
+	argv := []string{"test", filepath.Join(root, "Tests", "CoupleBeds.Tests.csproj"), "-nologo"}
+	if *filter != "" {
+		argv = append(argv, "--filter", "FullyQualifiedName~"+*filter)
+	}
+	if *verbose {
+		argv = append(argv, "--logger", "console;verbosity=normal")
+	}
+
+	cmd := exec.Command(dotnet, argv...)
+	cmd.Dir = root
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	// The test project is plain .NET; keep the mod's game-DLL hint out of it.
+	cmd.Env = append(os.Environ(), "DOTNET_NOLOGO=1")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("dotnet test failed: %w", err)
+	}
 	return nil
 }
 

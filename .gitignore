@@ -11,3 +11,7 @@ Assemblies/*.dll
 *.csproj.user
 *.swp
 *.user
+# tests
+Tests/obj/
+Tests/bin/
+TestResults/
