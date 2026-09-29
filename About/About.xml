@@ -3,6 +3,7 @@
   <name>Couple Beds</name>
   <author>Max</author>
   <packageId>max.couplebeds</packageId>
+  <modVersion>0.1.0</modVersion>
   <supportedVersions>
     <li>1.5</li>
     <li>1.6</li>
